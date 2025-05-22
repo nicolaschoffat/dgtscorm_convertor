@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SCORM Slides</title>
+    <script src="scorm_api_wrapper.js"></script>
+    <script>
+        const TOTAL_SLIDES = {{ slides|length }};
+        let viewedSlides = new Set();
+        let startTime = Date.now();
+        let minDuration = {{ duration }} * 1000;
+        let completionSent = false;
+        let mode = "{{ mode }}";
+
+        function markSlideViewed(index) {
+            viewedSlides.add(index);
+            checkCompletion();
+        }
+
+        function checkCompletion() {
+            const durationPassed = Date.now() - startTime;
+            const allSlidesViewed = viewedSlides.size === TOTAL_SLIDES;
+
+            if (!completionSent &&
+                ((mode === "slides" && allSlidesViewed) ||
+                 (mode === "duration" && durationPassed >= minDuration) ||
+                 (mode === "both" && allSlidesViewed && durationPassed >= minDuration))) {
+                API.LMSSetValue("cmi.core.lesson_status", "completed");
+                API.LMSCommit("");
+                completionSent = true;
+                console.log("SCORM: completed");
+            }
+        }
+
+        function goToSlide(n) {
+            document.querySelectorAll('.slide-frame').forEach(f => f.style.display = 'none');
+            const frame = document.getElementById('slide-' + n);
+            if (frame) {
+                frame.style.display = 'block';
+                markSlideViewed(n);
+            }
+        }
+
+        window.onload = function () {
+            API.LMSInitialize("");
+            goToSlide(1);
+        };
+    </script>
+</head>
+<body>
+    <h1>Présentation</h1>
+    {% for slide in slides %}
+        <iframe class="slide-frame" id="slide-{{ slide.index }}" src="slides/slide_{{ slide.index }}.html" style="width:100%;height:500px;display:none;"></iframe>
+    {% endfor %}
+    <div>
+        {% for slide in slides %}
+            <button onclick="goToSlide({{ slide.index }})">Slide {{ slide.index }}</button>
+        {% endfor %}
+    </div>
+</body>
+</html>
